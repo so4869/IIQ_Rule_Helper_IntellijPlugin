@@ -1,0 +1,28 @@
+# Gradle
+.gradle/
+build/
+gradle/wrapper/gradle-wrapper.jar
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# IntelliJ Platform Plugin
+.intellijPlatform/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Plugin signing credentials (never commit these)
+chain.crt
+private.pem
+*.p12
+*.jks
+
+# Environment / local overrides
+local.properties
+.env

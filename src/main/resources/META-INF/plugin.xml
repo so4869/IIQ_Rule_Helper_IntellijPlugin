@@ -1,0 +1,31 @@
+<idea-plugin>
+    <id>im.flare.iiq-rule-helper</id>
+    <name>IIQ Rule Helper</name>
+    <vendor email="contact@flare.im" url="https://flare.im">Flare</vendor>
+
+    <description><![CDATA[
+        Helper plugin for IdentityIQ (IIQ) rule development.
+        Provides code completion, validation, and navigation for IIQ rules.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <configurationType implementation="im.flare.run.IIQRunConfigurationType"/>
+        <configurationType implementation="im.flare.run.IIQExportRunConfigurationType"/>
+        <configurationType implementation="im.flare.run.IIQImportRunConfigurationType"/>
+        <notificationGroup id="IIQ Rule Helper" displayType="BALLOON"/>
+    </extensions>
+
+    <actions>
+        <group id="IIQ.CompareWithServerGroup"
+               class="im.flare.action.CompareWithServerGroup"
+               text="Compare with Server"
+               description="Compare this rule with the version on the IIQ server"
+               popup="true">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </group>
+    </actions>
+</idea-plugin>

@@ -51,7 +51,85 @@ object IIQSourceExtractor {
             append("\n\n")
         }
         append(dedent(info.executeBody))
-    }.trim()
+    }.trim().let { stripGenerics(it) }
+
+    private fun stripGenerics(source: String): String {
+        val sb = StringBuilder(source.length)
+        var i = 0
+        while (i < source.length) {
+            when {
+                source.startsWith("//", i) -> {
+                    val end = source.indexOf('\n', i).let { if (it == -1) source.length else it + 1 }
+                    sb.append(source, i, end)
+                    i = end
+                }
+                source.startsWith("/*", i) -> {
+                    val end = source.indexOf("*/", i + 2).let { if (it == -1) source.length else it + 2 }
+                    sb.append(source, i, end)
+                    i = end
+                }
+                source[i] == '"' -> {
+                    val end = skipStringLiteral(source, i)
+                    sb.append(source, i, end)
+                    i = end
+                }
+                source[i] == '\'' -> {
+                    val end = skipCharLiteral(source, i)
+                    sb.append(source, i, end)
+                    i = end
+                }
+                source[i] == '<' && i > 0 && isIdentChar(source[i - 1]) -> {
+                    val end = findGenericEnd(source, i)
+                    if (end >= 0) i = end + 1 else sb.append(source[i++])
+                }
+                else -> sb.append(source[i++])
+            }
+        }
+        return sb.toString()
+    }
+
+    private fun isIdentChar(c: Char) = c.isLetterOrDigit() || c == '_' || c == '$'
+
+    // Returns the index of the closing '>' if the '<' at [start] begins a generic type argument list,
+    // or -1 if it looks like a comparison operator. Handles nested generics by depth tracking.
+    private fun findGenericEnd(source: String, start: Int): Int {
+        var depth = 1
+        var i = start + 1
+        while (i < source.length) {
+            when (source[i]) {
+                '<' -> depth++
+                '>' -> { if (--depth == 0) return i }
+                // Characters that cannot appear in a type argument list
+                ';', '{', '}', '(', ')', '=', '+', '-', '*', '/', '%', '!', '"', '\'' -> return -1
+            }
+            i++
+        }
+        return -1
+    }
+
+    private fun skipStringLiteral(source: String, start: Int): Int {
+        var i = start + 1
+        while (i < source.length) {
+            when (source[i]) {
+                '\\' -> i += 2
+                '"' -> return i + 1
+                else -> i++
+            }
+        }
+        return source.length
+    }
+
+    private fun skipCharLiteral(source: String, start: Int): Int {
+        var i = start + 1
+        while (i < source.length) {
+            when (source[i]) {
+                '\\' -> i += 2
+                '\'' -> return i + 1
+                else -> i++
+            }
+        }
+        return source.length
+    }
 
     private fun dedent(code: String): String {
         val lines = code.lines()

@@ -8,6 +8,8 @@ class IIQExportRunConfigurationFactory(type: ConfigurationType) : ConfigurationF
 
     override fun getId(): String = "IIQ_EXPORT_SNAPSHOT_FACTORY"
 
+    override fun getName(): String = "IIQ Rule Export Snapshot"
+
     override fun createTemplateConfiguration(project: Project) =
-        IIQExportRunConfiguration(project, this, "IIQ Export Snapshot")
+        IIQExportRunConfiguration(project, this, "IIQ Rule Export Snapshot")
 }

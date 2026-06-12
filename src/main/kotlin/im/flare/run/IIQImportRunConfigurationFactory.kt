@@ -8,6 +8,8 @@ class IIQImportRunConfigurationFactory(type: ConfigurationType) : ConfigurationF
 
     override fun getId(): String = "IIQ_IMPORT_SNAPSHOT_FACTORY"
 
+    override fun getName(): String = "IIQ Rule Import Snapshot"
+
     override fun createTemplateConfiguration(project: Project) =
-        IIQImportRunConfiguration(project, this, "IIQ Import Snapshot")
+        IIQImportRunConfiguration(project, this, "IIQ Rule Import Snapshot")
 }

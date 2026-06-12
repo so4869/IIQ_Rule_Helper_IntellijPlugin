@@ -7,15 +7,28 @@ object IIQTemplateProcessor {
     private val SOURCE_PATTERN = Regex("<Source>[\\s\\S]*?</Source>")
     private val RULE_TAG_PATTERN = Regex("(<Rule)(\\b[^>]*)(>)")
 
+    private val DEFAULT_TEMPLATE = """
+        <?xml version='1.0' encoding='UTF-8'?>
+        <!DOCTYPE Rule PUBLIC "sailpoint.dtd" "sailpoint.dtd">
+        <Rule language="beanshell" name="${'$'}TEMPLATE.NAME" type="${'$'}TEMPLATE.TYPE">
+            <Source></Source>
+        </Rule>
+    """.trimIndent()
+
+    fun readTemplateText(templateDirectory: String, type: String): String {
+        val file = File(templateDirectory, "$type.template.xml")
+        return if (file.exists()) file.readText(Charsets.UTF_8) else DEFAULT_TEMPLATE
+    }
+
     fun process(
-        templateFile: File,
+        templateText: String,
         info: IIQClassInfo,
         existingId: String? = null,
         createdMs: Long? = null,
         modifiedMs: Long? = null
     ): String {
         val source = IIQSourceExtractor.assembleSource(info)
-        return templateFile.readText(Charsets.UTF_8)
+        return templateText
             .replace("\$TEMPLATE.NAME", info.name ?: "")
             .replace("\$TEMPLATE.TYPE", info.type ?: "")
             .let { addRuleAttributes(it, existingId, createdMs, modifiedMs) }
@@ -40,6 +53,4 @@ object IIQTemplateProcessor {
         }
     }
 
-    fun resolveTemplateFile(templateDirectory: String, type: String): File =
-        File(templateDirectory, "$type.template.xml")
 }

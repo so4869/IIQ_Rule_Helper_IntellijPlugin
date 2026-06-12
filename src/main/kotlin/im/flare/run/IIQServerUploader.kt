@@ -130,9 +130,10 @@ object IIQServerUploader {
         }
     }
 
-    private fun parseDate(dateStr: String): Long? = runCatching {
-        DATE_FORMAT.parse(dateStr)?.time
-    }.getOrNull()
+    private fun parseDate(dateStr: String): Long? {
+        dateStr.toLongOrNull()?.let { return it }
+        return runCatching { DATE_FORMAT.parse(dateStr)?.time }.getOrNull()
+    }
 
     private fun buildClient(ignoreSsl: Boolean): OkHttpClient {
         if (!ignoreSsl) return OkHttpClient()

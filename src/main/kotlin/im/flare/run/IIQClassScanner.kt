@@ -34,8 +34,7 @@ object IIQClassScanner {
 
     private fun hasPerformFlag(psiClass: PsiClass): Boolean =
         psiClass.fields.any { field ->
-            field.name == "PERFORM_IIQ_SERVER" &&
-            field.hasModifierProperty(PsiModifier.PRIVATE) &&
+            (field.name == "PERFORM_IIQ_SERVER" || field.name == "PERFORM_TO_IIQ_SERVER") &&
             field.hasModifierProperty(PsiModifier.STATIC) &&
             field.type == PsiType.BOOLEAN &&
             field.initializer?.text?.trim() == "true"

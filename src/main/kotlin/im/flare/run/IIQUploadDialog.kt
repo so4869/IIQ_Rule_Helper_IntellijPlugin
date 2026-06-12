@@ -29,7 +29,8 @@ class IIQUploadDialog(
     project: Project,
     classes: List<Pair<String, String?>>,   // fqn to rule name
     lastChecked: Set<String>,
-    lastCreateBackup: Boolean = false
+    lastCreateBackup: Boolean = false,
+    showBackup: Boolean = true
 ) : DialogWrapper(project) {
 
     private val tableModel = ClassTableModel(
@@ -83,6 +84,7 @@ class IIQUploadDialog(
         "Create Backup  (saves current server version as {name}-yyyyMMddHHmmss before uploading)"
     ).apply {
         isSelected = lastCreateBackup
+        isVisible = showBackup
     }
 
     init {

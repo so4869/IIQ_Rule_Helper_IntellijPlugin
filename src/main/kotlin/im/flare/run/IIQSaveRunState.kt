@@ -16,23 +16,18 @@ import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
-import java.io.IOException
+import java.io.File
 import java.io.OutputStream
-import java.text.SimpleDateFormat
-import java.util.Date
 
-class IIQRunState(
+class IIQSaveRunState(
     private val environment: ExecutionEnvironment,
-    private val config: IIQRunConfiguration
+    private val config: IIQSaveRunConfiguration
 ) : RunProfileState {
 
     override fun execute(executor: Executor?, runner: ProgramRunner<*>): ExecutionResult {
         val project = environment.project
         val processHandler = createProcessHandler()
-
-        val console = TextConsoleBuilderFactory.getInstance()
-            .createBuilder(project)
-            .console
+        val console = TextConsoleBuilderFactory.getInstance().createBuilder(project).console
         console.attachToProcess(processHandler)
         processHandler.startNotify()
 
@@ -51,10 +46,19 @@ class IIQRunState(
             }
 
             override fun onSuccess() {
+                if (classInfoMap.isEmpty()) {
+                    console.error("No eligible classes found.\n")
+                    processHandler.destroyProcess()
+                    return
+                }
+
                 val sortedEntries = classInfoMap.entries
                     .sortedBy { it.key }
                     .map { (fqn, info) -> fqn to info.name }
-                val dialog = IIQUploadDialog(project, sortedEntries, config.getLastCheckedClassSet(), config.createBackup)
+                val dialog = IIQUploadDialog(
+                    project, sortedEntries, config.getLastCheckedClassSet(),
+                    showBackup = false
+                )
 
                 if (!dialog.showAndGet()) {
                     processHandler.destroyProcess()
@@ -62,11 +66,15 @@ class IIQRunState(
                 }
 
                 val checked = dialog.getCheckedClasses()
+                if (checked.isEmpty()) {
+                    console.error("No classes selected.\n")
+                    processHandler.destroyProcess()
+                    return
+                }
                 config.lastCheckedClasses = checked.joinToString(",")
-                config.createBackup = dialog.isCreateBackup()
 
-                val toUpload = checked.mapNotNull { classInfoMap[it] }
-                performUpload(project, toUpload, dialog.isCreateBackup(), processHandler, console)
+                val toSave = checked.mapNotNull { classInfoMap[it] }
+                performSave(project, toSave, processHandler, console)
             }
 
             override fun onThrowable(error: Throwable) {
@@ -79,43 +87,24 @@ class IIQRunState(
         return DefaultExecutionResult(console, processHandler)
     }
 
-    private fun validateTemplates(classes: List<IIQClassInfo>): List<String> {
-        val missing = mutableListOf<String>()
-        for (info in classes) {
-            if (info.name == null) {
-                missing.add("${info.qualifiedName} — 'name' field not found")
-            }
-            if (info.type == null) {
-                missing.add("${info.qualifiedName} — 'type' field not found")
-            }
-        }
-        return missing
-    }
-
-    private fun performUpload(
+    private fun performSave(
         project: Project,
         classes: List<IIQClassInfo>,
-        createBackup: Boolean,
         processHandler: ProcessHandler,
         console: ConsoleView
     ) {
-        object : Task.Backgroundable(project, "Uploading to IIQ server...", false) {
-            private val errors = mutableListOf<Pair<String, String>>()
+        object : Task.Backgroundable(project, "Saving rule XML files...", false) {
             private var successCount = 0
+            private val errors = mutableListOf<Pair<String, String>>()
 
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = false
-
-                val missingTemplates = validateTemplates(classes)
-                if (missingTemplates.isNotEmpty()) {
-                    val detail = missingTemplates.joinToString("\n") { "  • $it" }
-                    throw IllegalStateException("Upload aborted. Missing templates:\n$detail")
-                }
+                val outputDir = File(config.outputDirectory)
 
                 classes.forEachIndexed { index, info ->
                     indicator.fraction = (index + 1).toDouble() / classes.size
-                    indicator.text = "Uploading ${info.qualifiedName}..."
-                    runCatching { uploadClass(info, createBackup, console) }
+                    indicator.text = "Saving ${info.name ?: info.qualifiedName}..."
+                    runCatching { saveClass(info, outputDir, console) }
                         .onSuccess { successCount++ }
                         .onFailure { e ->
                             val msg = e.message ?: "Unknown error"
@@ -128,71 +117,43 @@ class IIQRunState(
             override fun onSuccess() {
                 processHandler.destroyProcess()
                 if (errors.isEmpty()) {
-                    console.info("\nUpload complete: $successCount class(es) uploaded successfully.\n")
-                    console.info("\n없었으면 힘들었을거야. 오늘 반영 많이될거야. 스트롱! 스트롱!!\n")
-                    notifyInfo(project, "Upload complete: $successCount class(es) uploaded successfully.")
+                    console.info("\nSave complete: $successCount file(s) written.\n")
+                    notifyInfo(project, "Save complete: $successCount rule XML file(s) written.")
                 } else {
-                    console.error("\n$successCount uploaded, ${errors.size} failed.\n")
-                    notifyError(project, "$successCount uploaded, ${errors.size} failed. See Run console for details.")
+                    console.error("\n$successCount saved, ${errors.size} failed.\n")
+                    notifyError(project, "$successCount saved, ${errors.size} failed. See Run console for details.")
                 }
             }
 
             override fun onThrowable(error: Throwable) {
-                console.error("Upload failed: ${error.message}\n")
+                console.error("Save failed: ${error.message}\n")
                 processHandler.destroyProcess()
-                notifyError(project, "Upload failed: ${error.message}")
+                notifyError(project, "Save failed: ${error.message}")
             }
         }.queue()
     }
 
-    private fun uploadClass(info: IIQClassInfo, createBackup: Boolean, console: ConsoleView) {
-        val type = info.type!! // guaranteed non-null by validateTemplates
+    private fun saveClass(info: IIQClassInfo, outputDir: File, console: ConsoleView) {
+        val ruleName = info.name
+            ?: throw IllegalStateException("${info.qualifiedName} — 'name' field not found")
+        val type = info.type
+            ?: throw IllegalStateException("${info.qualifiedName} — 'type' field not found")
+
         val templateText = IIQTemplateProcessor.readTemplateText(config.templateDirectory, type)
+        val xml = IIQTemplateProcessor.process(templateText = templateText, info = info)
 
-        val existing = if (info.name != null) IIQServerUploader.findExisting(config, info.name) else null
-
-        var createdMs: Long? = existing?.createdMs
-        var modifiedMs: Long? = existing?.modifiedMs
-
-        if (existing != null && (createBackup || createdMs == null || modifiedMs == null)) {
-            val serverXml = IIQServerUploader.fetchRuleXml(config, existing.id)
-            if (serverXml != null) {
-                if (createBackup && info.name != null) {
-                    val timestamp = SimpleDateFormat("yyyyMMddHHmmss").format(Date())
-                    val backupXml = IIQXmlUtils.buildBackupXml(serverXml, "${info.name}-$timestamp")
-                    val backupRuleTag = Regex("<Rule\\b[^>]*>").find(backupXml)?.value ?: "<Rule>"
-                    val backupResult = IIQServerUploader.upload(config, backupXml, null)
-                    backupResult.response.use { response ->
-                        console.info("  [Backup] $backupRuleTag → POST ${backupResult.endpoint}\n")
-                        if (!response.isSuccessful) {
-                            throw IOException("Backup failed (HTTP ${response.code}): ${response.body?.string()?.take(200)}")
-                        }
-                    }
-                }
-                val (xmlCreatedMs, xmlModifiedMs) = IIQXmlUtils.extractRuleDates(serverXml)
-                if (createdMs == null) createdMs = xmlCreatedMs
-                if (modifiedMs == null) modifiedMs = xmlModifiedMs
-            }
+        val targetDir = if (config.mirrorPackageStructure) {
+            val pkg = info.qualifiedName.substringBeforeLast('.', missingDelimiterValue = "")
+            if (pkg.isNotEmpty()) File(outputDir, pkg.replace('.', '/')) else outputDir
+        } else {
+            outputDir
         }
+        targetDir.mkdirs()
 
-        val xml = IIQTemplateProcessor.process(
-            templateText = templateText,
-            info = info,
-            existingId = existing?.id,
-            createdMs = createdMs,
-            modifiedMs = modifiedMs
-        )
-
-        val ruleTag = Regex("<Rule\\b[^>]*>").find(xml)?.value ?: "<Rule>"
-        val result = IIQServerUploader.upload(config, xml, existing?.id)
-        result.response.use { response ->
-            if (!response.isSuccessful) {
-                throw IOException("HTTP ${response.code}: ${response.body?.string()?.take(200)}")
-            }
-        }
-        console.info("  [Upload] $ruleTag → POST ${result.endpoint}\n")
+        val outFile = File(targetDir, "$ruleName.xml")
+        outFile.writeText(xml, Charsets.UTF_8)
+        console.info("  [Saved] $ruleName → ${outFile.absolutePath}\n")
     }
-
 
     private fun notifyInfo(project: Project, message: String) {
         NotificationGroupManager.getInstance()

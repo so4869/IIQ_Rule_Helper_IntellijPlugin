@@ -8,6 +8,8 @@ class IIQRunConfigurationFactory(type: ConfigurationType) : ConfigurationFactory
 
     override fun getId(): String = "IIQ_RULE_IMPORT_FACTORY"
 
+    override fun getName(): String = "IIQ Rule Deploy"
+
     override fun createTemplateConfiguration(project: Project) =
-        IIQRunConfiguration(project, this, "IIQ Rule Import")
+        IIQRunConfiguration(project, this, "IIQ Rule Deploy")
 }

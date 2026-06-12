@@ -6,7 +6,7 @@ An IntelliJ IDEA plugin for IdentityIQ (IIQ) rule development. Provides server u
 
 ## Features
 
-- **IIQ Rule Import** — Scan eligible classes, select what to upload, and push to the IIQ server via REST API
+- **IIQ Rule Deploy** — Scan eligible classes, select what to upload, and push to the IIQ server via REST API
 - **Create Backup** — Optionally back up the current server version before overwriting
 - **Compare with Server** — Diff your local rule against the live server version side-by-side
 
@@ -20,9 +20,13 @@ An IntelliJ IDEA plugin for IdentityIQ (IIQ) rule development. Provides server u
 
 ---
 
-## Run Configuration: IIQ Rule Import
+## Run Configurations
 
-Add a new run configuration of type **IIQ Rule Import**.
+All configurations are grouped under **IIQ Rule Helper** in the *Add New Configuration* dialog.
+
+### IIQ Rule Deploy
+
+Add a new run configuration of type **IIQ Rule Helper → IIQ Rule Deploy**.
 
 | Field | Description |
 |---|---|
@@ -35,11 +39,15 @@ Add a new run configuration of type **IIQ Rule Import**.
 
 ### Marking a Class for Upload
 
-Add the following field to any Java class you want to make eligible for upload:
+Add one of the following fields to any Java class you want to make eligible for upload:
 
 ```java
-private static final boolean PERFORM_IIQ_SERVER = true;
+static final boolean PERFORM_IIQ_SERVER = true;
+// or
+static final boolean PERFORM_TO_IIQ_SERVER = true;
 ```
+
+Access modifier (`private`, `public`, etc.) does not matter — only `static boolean` and a value of `true` are required.
 
 The class must also declare the rule name and type:
 
@@ -109,7 +117,7 @@ Right-click any eligible Java class (in the editor or project view) and select *
 - Opens a **modal diff** showing the `<Source>` content only, with Java syntax highlighting
 - **Left side:** Local | **Right side:** Server
 
-> The class must have `PERFORM_IIQ_SERVER = true`, `name`, and `type` fields to appear in the menu.
+> The class must have `PERFORM_IIQ_SERVER = true` or `PERFORM_TO_IIQ_SERVER = true`, plus `name` and `type` fields to appear in the menu.
 
 ---
 

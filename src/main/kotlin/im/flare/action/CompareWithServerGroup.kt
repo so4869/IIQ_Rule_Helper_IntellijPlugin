@@ -25,20 +25,25 @@ class CompareWithServerGroup : ActionGroup() {
             return
         }
         val psiClass = getCurrentPsiClass(e)
-        e.presentation.isVisible = psiClass != null && isEligible(psiClass)
+        if (psiClass == null || !isEligible(psiClass)) {
+            e.presentation.isVisible = false
+            return
+        }
+        val hasConfigs = RunManager.getInstance(project).allSettings
+            .any { it.configuration is IIQRunConfiguration }
+        e.presentation.isVisible = hasConfigs
     }
 
     override fun getChildren(e: AnActionEvent?): Array<AnAction> {
         val e = e ?: return AnAction.EMPTY_ARRAY
         val project = e.project ?: return AnAction.EMPTY_ARRAY
-        val psiClass = getCurrentPsiClass(e) ?: return AnAction.EMPTY_ARRAY
 
         val configs = RunManager.getInstance(project).allSettings
             .mapNotNull { it.configuration as? IIQRunConfiguration }
 
         if (configs.isEmpty()) return AnAction.EMPTY_ARRAY
 
-        return configs.map { CompareWithServerAction(config = it, psiClass = psiClass) }
+        return configs.map { CompareWithServerAction(config = it) }
             .toTypedArray()
     }
 
@@ -76,8 +81,7 @@ class CompareWithServerGroup : ActionGroup() {
 
         fun isEligible(psiClass: PsiClass): Boolean {
             val hasPerformFlag = psiClass.fields.any { field ->
-                field.name == "PERFORM_IIQ_SERVER" &&
-                field.hasModifierProperty(PsiModifier.PRIVATE) &&
+                (field.name == "PERFORM_IIQ_SERVER" || field.name == "PERFORM_TO_IIQ_SERVER") &&
                 field.hasModifierProperty(PsiModifier.STATIC) &&
                 field.type == PsiType.BOOLEAN &&
                 field.initializer?.text?.trim() == "true"

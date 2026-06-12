@@ -53,6 +53,13 @@ object IIQXmlUtils {
         rule?.let { outputter().outputString(it) }
     }.getOrNull()
 
+    fun extractRuleDates(xml: String): Pair<Long?, Long?> = runCatching {
+        val doc = saxBuilder().build(StringReader(xml))
+        val root = doc.rootElement
+        val rule = if (root.name == "Rule") root else root.getChild("Rule") ?: return@runCatching null to null
+        rule.getAttributeValue("created")?.toLongOrNull() to rule.getAttributeValue("modified")?.toLongOrNull()
+    }.getOrElse { null to null }
+
     /**
      * Parses a snapshot XML file and returns a list of (ruleName, ruleXmlString) pairs
      * from the <Sailpoint> section. CDATA sections are preserved.

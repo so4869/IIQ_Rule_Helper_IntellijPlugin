@@ -11,19 +11,18 @@ import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.ui.Messages
-import com.intellij.psi.PsiClass
 import im.flare.run.IIQRunConfiguration
 import im.flare.run.IIQServerUploader
 import im.flare.run.IIQSourceExtractor
 import im.flare.run.IIQTemplateProcessor
 
 class CompareWithServerAction(
-    private val config: IIQRunConfiguration,
-    private val psiClass: PsiClass
+    private val config: IIQRunConfiguration
 ) : AnAction(config.name) {
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
+        val psiClass = CompareWithServerGroup.getCurrentPsiClass(e) ?: return
 
         object : Task.Backgroundable(project, "Comparing with server (${config.name})...", false) {
             private var serverXml: String? = null
@@ -56,12 +55,9 @@ class CompareWithServerAction(
 
                 // 4. Build local XML
                 indicator.text = "Building local XML..."
-                val templateFile = IIQTemplateProcessor.resolveTemplateFile(config.templateDirectory, type)
-                if (!templateFile.exists()) {
-                    throw IllegalStateException("Template not found: ${templateFile.name}")
-                }
+                val templateText = IIQTemplateProcessor.readTemplateText(config.templateDirectory, type)
                 localXml = IIQTemplateProcessor.process(
-                    templateFile = templateFile,
+                    templateText = templateText,
                     info = info,
                     existingId = existing.id,
                     createdMs = existing.createdMs,

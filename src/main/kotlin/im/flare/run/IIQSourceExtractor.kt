@@ -29,7 +29,10 @@ object IIQSourceExtractor {
         val executeBody = extractBody(executeMethod)
 
         val helperMethods = collectHelperMethods(executeMethod, psiClass, mutableSetOf(executeMethod.name))
-            .joinToString("\n\n") { it.text }
+            .joinToString("\n\n") { method ->
+                val dedented = dedent(method.text)
+                "/* Start Method ${method.name} */\n$dedented\n/* End Method ${method.name} */"
+            }
 
         return IIQClassInfo(
             qualifiedName = qualifiedName,
@@ -156,8 +159,8 @@ object IIQSourceExtractor {
     private fun extractBody(method: PsiMethod): String {
         val body = method.body ?: return ""
         val text = body.text
-        // strip surrounding braces and trim
-        return text.substring(1, text.length - 1).trim()
+        // strip surrounding braces only — keep internal indentation intact for dedent()
+        return text.substring(1, text.length - 1)
     }
 
     private fun collectHelperMethods(

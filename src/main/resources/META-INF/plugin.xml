@@ -12,9 +12,7 @@
     <depends>com.intellij.modules.java</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <configurationType implementation="im.flare.run.IIQRunConfigurationType"/>
-        <configurationType implementation="im.flare.run.IIQExportRunConfigurationType"/>
-        <configurationType implementation="im.flare.run.IIQImportRunConfigurationType"/>
+        <configurationType implementation="im.flare.run.IIQRuleHelperConfigurationType"/>
         <notificationGroup id="IIQ Rule Helper" displayType="BALLOON"/>
     </extensions>
 

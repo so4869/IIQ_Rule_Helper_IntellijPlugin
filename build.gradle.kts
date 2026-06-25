@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "im.flare"
-version = "1.3.0"
+version = "1.3.1"
 
 repositories {
     mavenCentral()
@@ -29,7 +29,7 @@ dependencies {
 intellijPlatform {
     pluginConfiguration {
         name = "IIQ Rule Helper"
-        version = "1.3.0"
+        version = "1.3.1"
         ideaVersion {
             sinceBuild = "243"
             untilBuild.set(provider { null })
